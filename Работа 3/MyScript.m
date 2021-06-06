@@ -1,141 +1,180 @@
 clear all;
 clc;
+
+%довжина часового ряду, кількість спостережень
 N=12;
-n=6; nn=n-1;
+n=N/2;
+t=1:N;
 
-t=-nn:2:nn;
 Y=[239.5; 289.3; 340.7; 375.3; 393.8; 213.8; 173.4; 221.5; 275.3; 332.3; 430.5; 437.6;]'; %12
+Y_half=Y(n+1:N);
 
-Y_t=Y(1:n).*t;
-t2=t.^2;
-Y_t2=Y(1:n).*t2;
-t4=t.^4;
-sum_Y=sum(Y(1:n));
-sum_Y_t=sum(Y_t);
-sum_t2=sum(t2);
-sum_Y_t2=sum(Y_t2);
-sum_t4=sum(t4);
-
-Y_avg=mean(Y);
-D=cov(Y);
-
-%лин.
-a0_LM=sum_Y/n
-a1_LM=sum_Y_t/sum_t2
-yLM_p=a0_LM+a1_LM*(n)
-
-e_LM=Y(n+1)-yLM_p
-delta_LM=abs(Y(n+1)-yLM_p)
-eps_LM=abs(Y(n+1)-yLM_p)/Y(n+1)
-
-%параб.
-a2_PM=(n*sum_Y_t2-sum_t2*sum_Y)/(n*sum_t4-sum_t2^2)
-a1_PM=sum_Y_t/sum_t2
-a0_PM=sum_Y/n-a2_PM*sum_t2/n
-yPM_p=a0_PM+a1_PM*(n)+a2_PM*(n).^2
-
-e_PM=Y(n+1)-yPM_p
-delta_PM=abs(Y(n+1)-yPM_p)
-eps_PM=abs(Y(n+1)-yPM_p)/Y(n+1)
-
-%эксп.
-A=sum(log(Y(1:n))/n);
-B=sum(log(Y(1:n)).*t/sum_t2);
-a=exp(A)
-b=exp(B)
-yEM_p=a*b.^n
-
-e_EM=Y(n+1)-yEM_p
-delta_EM=abs(Y(n+1)-yEM_p)
-eps_EM=abs(Y(n+1)-yEM_p)/Y(n+1)
-
-i=0;
-
-for t=-nn:2:(nn+N)
-    i=i+1;
-    yLM(i)=a0_LM+a1_LM*t;
-    yPM(i)=a0_PM+a1_PM*t+a2_PM*t^2;
-    yEM(i)=a*b^t;
+%Наївна модель
+for i=(n):N-1
+     Y_naive(i+1-n)=Y(i) %наївна
+     Y_naive2(i+1-n)=Y(i)+(Y(i)-Y(i-1)) %модифікована 1
+     Y_naive3(i+1-n)=Y(i)*(Y(i)/Y(i-1)) %модифікована 2
+     Y_naive4(i+1-n)=((Y(i)+Y(i-1))/(Y(i-1)))*((Y(i)+Y(i-1))/4) %сезонні коливання
 end
-t=1:1:N;
-%САП
-MAE_LM=0;
+
+%На 11й
+naive_step1=Y_naive(1);
+naive2_step1=Y_naive2(1);
+naive3_step1=Y_naive3(1);
+naive4_step1=Y_naive4(1);
+
+%Помилки
+e_naive=Y(N/2+1)-naive_step1;
+e_naive2=Y(N/2+1)-naive2_step1;
+e_naive3=Y(N/2+1)-naive3_step1;
+e_naive4=Y(N/2+1)-naive4_step1;
+
+%Абсолютні помилки
+delta_naive=abs(Y(N/2+1)-naive_step1);
+delta_naive2=abs(Y(N/2+1)-naive2_step1);
+delta_naive3=abs(Y(N/2+1)-naive3_step1);
+delta_naive4=abs(Y(N/2+1)-naive4_step1);
+
+%Відносні помилки
+eps_naive=abs(Y(N/2+1)-naive_step1)/Y(N/2+1);
+eps_naive2=abs(Y(N/2+1)-naive2_step1)/Y(N/2+1);
+eps_naive3=abs(Y(N/2+1)-naive3_step1)/Y(N/2+1);
+eps_naive4=abs(Y(N/2+1)-naive4_step1)/Y(N/2+1);
+
+%---------- Наївна модель ----------%
+naive_step1
+e_naive
+delta_naive
+eps_naive
+
+%середня абсолютна помилка
+MAE_naive=0; 
 for i=(n+1):N
-    MAE_LM=MAE_LM+abs(Y(i)-yLM(i));
+    MAE_naive=MAE_naive+abs(Y(i)-Y_naive(i-n)); %i-n бо Y_naive поч. з 1
 end
-MAE_LM=MAE_LM/n
+MAE_naive=MAE_naive/(n)
 
-%САВПП
-MAPE_LM=0;
+%середня абсолютна відсоткова помилка прогнозу
+MAPE_naive=0;
 for i=(n+1):N
-    MAPE_LM=MAPE_LM+abs(Y(i)-yLM(i))/Y(i);
+    MAPE_naive=MAPE_naive+abs(Y(i)-Y_naive(i-n))/Y(i);
 end
-MAPE_LM=100*MAPE_LM/n
+MAPE_naive=100*MAPE_naive/(n)
 
-%СВПП
-MPE_LM=0;
+%середня відсоткова помилка прогнозу
+MPE_naive=0;
 for i=(n+1):N
-    MPE_LM=MPE_LM+abs(Y(i)-yLM(i))/Y(i);
+    MPE_naive=MPE_naive+(Y(i)-Y_naive(i-n))/Y(i);
 end
-MPE_LM=100*MPE_LM/n
+MPE_naive=100*MPE_naive/(n)
 
-%КД
-R2_LM=1-(sum((Y-yLM).^2))/(sum((Y-Y_avg).^2))
+%коефіцієнт детермінації
+for i=1:n
+error_naive(i)=Y_half(i)-Y_naive(i);
+end
+R2_naive = 1 - (cov(Y_half)/cov(error_naive))
 
-%САП
-MAE_PM=0;
+%---------- Наївна модель (модифікація 1) ----------%
+naive2_step1
+e_naive2
+delta_naive2
+eps_naive2
+
+%середня абсолютна помилка
+MAE_naive2=0; 
 for i=(n+1):N
-    MAE_PM=MAE_PM+abs(Y(i)-yPM(i));
+    MAE_naive2=MAE_naive2+abs(Y(i)-Y_naive2(i-n)); %i-n бо Y_naive поч. з 1
 end
-MAE_PM=MAE_PM/n
+MAE_naive2=MAE_naive2/(n)
 
-%САВПП
-MAPE_PM=0;
+%середня абсолютна відсоткова помилка прогнозу
+MAPE_naive2=0;
 for i=(n+1):N
-    MAPE_PM=MAPE_PM+abs(Y(i)-yPM(i))/Y(i);
+    MAPE_naive2=MAPE_naive2+abs(Y(i)-Y_naive2(i-n))/Y(i);
 end
-MAPE_PM=100*MAPE_PM/n
+MAPE_naive2=100*MAPE_naive2/(n)
 
-%СВПП
-MPE_PM=0;
+%середня відсоткова помилка прогнозу
+MPE_naive2=0;
 for i=(n+1):N
-    MPE_PM=MPE_PM+abs(Y(i)-yPM(i))/Y(i);
+    MPE_naive2=MPE_naive2+(Y(i)-Y_naive2(i-n))/Y(i);
 end
-MPE_PM=100*MPE_PM/n
+MPE_naive2=100*MPE_naive2/(n)
 
-%КД
-R2_PM=1-(sum((Y-yPM).^2))/(sum((Y-Y_avg).^2))
+%коефіцієнт детермінації
+for i=1:n
+error_naive2(i)=Y_half(i)-Y_naive2(i);
+end
+R2_naive2 = 1 - (cov(Y_half)/cov(error_naive2))
 
-%САП
-MAE_EM=0;
+%---------- Наївна модель (модифікація 2) ----------%
+naive3_step1
+e_naive3
+delta_naive3
+eps_naive3
+
+%середня абсолютна помилка
+MAE_naive3=0; 
 for i=(n+1):N
-    MAE_EM=MAE_EM+abs(Y(i)-yEM(i));
+    MAE_naive3=MAE_naive3+abs(Y(i)-Y_naive3(i-n)); %i-n бо Y_naive поч. з 1
 end
-MAE_EM=MAE_EM/n
+MAE_naive3=MAE_naive3/(n)
 
-%САВПП
-MAPE_EM=0;
+% середня абсолютна відсоткова помилка прогнозу
+MAPE_naive3=0;
 for i=(n+1):N
-    MAPE_EM=MAPE_EM+abs(Y(i)-yEM(i))/Y(i);
+    MAPE_naive3=MAPE_naive3+abs(Y(i)-Y_naive3(i-n))/Y(i);
 end
-MAPE_EM=100*MAPE_EM/n
+MAPE_naive3=100*MAPE_naive3/(n)
 
-%СВПП
-MPE_EM=0;
+% середня відсоткова помилка прогнозу
+MPE_naive3=0;
 for i=(n+1):N
-    MPE_EM=MPE_EM+abs(Y(i)-yEM(i))/Y(i);
+    MPE_naive3=MPE_naive3+(Y(i)-Y_naive3(i-n))/Y(i);
 end
-MPE_EM=100*MPE_EM/n
+MPE_naive3=100*MPE_naive3/(n)
 
-%КД
-R2_EM=1-(sum((Y-yEM).^2))/(sum((Y-Y_avg).^2))
+%коефіцієнт детермінації
+for i=1:n
+error_naive3(i)=Y_half(i)-Y_naive3(i);
+end
+R2_naive3 = 1 - (cov(Y_half)/cov(error_naive3))
 
-figure(1)
-plot(t,Y,'--ko')
+%---------- Наївна модель (сезонні коливання) ----------%
+naive4_step1
+e_naive4
+delta_naive4
+eps_naive4
+
+%середня абсолютна помилка
+MAE_naive4=0; 
+for i=(n+1):N
+    MAE_naive4=MAE_naive4+abs(Y(i)-Y_naive4(i-n)); %i-n бо Y_nm поч. з 1
+end
+MAE_naive4=MAE_naive4/(n)
+
+%середня абсолютна відсоткова помилка прогнозу
+MAPE_naive4=0;
+for i=(n+1):N
+    MAPE_naive4=MAPE_naive4+abs(Y(i)-Y_naive4(i-n))/Y(i);
+end
+MAPE_naive4=100*MAPE_naive4/(n)
+
+%середня відсоткова помилка прогнозу
+MPE_naive4=0;
+for i=(n+1):N
+    MPE_naive4=MPE_naive4+(Y(i)-Y_naive4(i-n))/Y(i);
+end
+MPE_naive4=100*MPE_naive4/(n)
+
+%коефіцієнт детермінації
+for i=1:n
+error_naive4(i)=Y_half(i)-Y_naive4(i);
+end
+R2_naive4 = 1 - (cov(Y_half)/cov(error_naive4))
+
+plot(t,Y,'-kp',(n+1:N),Y_naive,'-mo',(n+1:N),Y_naive2,'-.rs',(n+1:N),Y_naive3,'-gx',(n+1:N),Y_naive4,'-.y+')
 grid on
-legend('Y')
-
-figure(2)
-plot(t,Y,'--ko',t,yLM,':b*',t,yPM,'-.rs',t,yEM,'-.go')
-grid on
-legend('Y','yLM','yPM','yEM')
+legend('Y','Ynaiv', 'YnaivM1', 'YnaivM2' )
+xlabel('час');
+ylabel('Y');
